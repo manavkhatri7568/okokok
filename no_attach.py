@@ -240,10 +240,10 @@ def _ssi_for(cp, ccy):
         "intermediary_bank": f"{inter[0]} ({inter[1]})",
     }
 
-def gen_cashflow(cp, dt, product=None, shows_ssi=True, vdate=None):
+def gen_cashflow(cp, dt, product=None, shows_ssi=True, vdate=None, ccy=None):
     global _cf_seq, _bk_seq
     product = product or random.choice(cp["products"])
-    ccy = random.choice(CCYS)
+    ccy = ccy or random.choice(CCYS)
     amount = round(random.uniform(500, 6_000_000), 2)
     if random.random() < 0.12:
         amount = -amount
@@ -285,11 +285,12 @@ def gen_cashflow(cp, dt, product=None, shows_ssi=True, vdate=None):
             cp_trade_ref if _rr < 0.5
             else ("" if _rr < 0.7 else str(random.randint(340_000_000, 355_000_000)))
         )
+        signed_int_amount = -abs(int_amount) if direction == "Pay" else abs(int_amount)
         cashflows.append({
             "cashflow_id": cf_id, "booking_ref": booking_ref,
             "counterparty_org_name": cp["name"], "counterparty_entity": cp["entity"],
             "product_type": product, "trade_system": PRODUCT_SYSTEM[product],
-            "cashflow_type": cf_type, "currency": ccy, "amount": int_amount,
+            "cashflow_type": cf_type, "currency": ccy, "amount": signed_int_amount,
             "direction": direction, "value_date": str(value_date), "status": status,
             "bank_trade_ref": bank_trade_ref, "counterparty_trade_ref": internal_cp_ref,
             "product_ref": prod_ref,
@@ -323,6 +324,8 @@ def add_orphan_cashflows(n):
         ssi = _ssi_for(cp, ccy)
         _cf_seq += 1
         _bk_seq += 1
+        orphan_direction = random.choice(["Pay", "Receive"])
+        orphan_magnitude = round(random.uniform(1000, 2_000_000), 2)
         cashflows.append({
             "cashflow_id": f"CF-{_cf_seq:06d}",
             "booking_ref": f"BK-{_bk_seq:05d}",
@@ -332,8 +335,8 @@ def add_orphan_cashflows(n):
             "trade_system": PRODUCT_SYSTEM[product],
             "cashflow_type": CASHFLOW_TYPE[product],
             "currency": ccy,
-            "amount": round(random.uniform(1000, 2_000_000), 2),
-            "direction": random.choice(["Pay", "Receive"]),
+            "amount": -orphan_magnitude if orphan_direction == "Pay" else orphan_magnitude,
+            "direction": orphan_direction,
             "value_date": str(rand_dt().date()),
             "status": random.choice(["Not Settled", "Not Settled", "Not Settled", "Settled"]),
             "bank_trade_ref": f"NB-{random.randint(100000, 999999)}",
@@ -404,7 +407,7 @@ def s13(cfs, cp):
         [c["cp_trade_ref"], vd, c["currency"], dnum(abs(c["amount"])), cd(c["direction"])]
         for c in cfs
     ]
-    legend = "C = counterparty receives / bank payment\nD = counterparty pays / bank receipt\n"
+    legend = f"C = {cp['name']} receives / bank payment\nD = {cp['name']} pays / bank receipt\n"
     esc1 = f"escalation1@{cp['domain']}"
     esc2 = f"escalation2@{cp['domain']}"
     esc3 = f"escalation3@{cp['domain']}"
@@ -440,8 +443,8 @@ def s13(cfs, cp):
         f"below cashflows for value date {vd}.<br>"
         f"Please confirm if you agree with the below settlement amounts and settlement "
         f"instructions to process.</p>"
-        f"<p><b>C = counterparty receives / bank payment</b><br>"
-        f"<b>D = counterparty pays / bank receipt</b></p>"
+        f"<p><b>C = {cp['name']} receives / bank payment</b><br>"
+        f"<b>D = {cp['name']} pays / bank receipt</b></p>"
         + html_table(headers, rows)
         + f"<p>Escalations:<br>Level 1: {esc1}<br>Level 2: {esc2}<br>Level 3: {esc3}</p>"
         f"<p>Thanks and Regards,<br>{cp['name']} Settlement Operations</p>"
@@ -468,13 +471,14 @@ def s14(cfs, cp):
         src3 = str(random.randint(500_000_000, 600_000_000))
         oms  = f"EQS_{random.randint(100,999):03d}_{cp['code']}_{random.randint(20260101,20280101)}"
         ref  = c["prod_ref"]
-        entity = f"{cp['code']}_SGP"
+        n_code = "n" + cp["code"][2:]
+        entity = f"{n_code}_SPD"
         all_rows += [
-            [src1, vd, cp["code"], c["currency"], f"{int1:>20,.2f}", entity,
+            [src1, vd, n_code, c["currency"], f"{int1:>20,.2f}", entity,
              "Equity Swap", "Interest Payment", oms, ref, c["cp_trade_ref"]],
-            [src2, vd, cp["code"], c["currency"], f"{int2:>20,.2f}", entity,
+            [src2, vd, n_code, c["currency"], f"{int2:>20,.2f}", entity,
              "Equity Swap", "Interest Payment", oms, ref, c["cp_trade_ref"]],
-            [src3, vd, cp["code"], c["currency"], f"{eq:>20,.2f}", entity,
+            [src3, vd, n_code, c["currency"], f"{eq:>20,.2f}", entity,
              "Equity Swap", "Equity Performance", oms, ref, c["cp_trade_ref"]],
         ]
         totals_by_cf.append(t)
@@ -487,7 +491,7 @@ def s14(cfs, cp):
 
     text = (
         CAUTION_BANNER
-        + f"Hi team,\n\nWe see the counterparty is due to receive "
+        + f"Hi team,\n\nWe see the {cp['name']} is due to receive "
         f"{cfs[0]['currency']} {dnum(abs(total))} on Value Date {fmt_date(cfs[0]['value_date'], 'dmon')}. "
         f"In the event of a mismatch, please provide your calculations for review.\n\n"
         + text_table(headers, all_rows + [total_row])
@@ -496,7 +500,7 @@ def s14(cfs, cp):
     html = (
         f"<html><body><pre>{CAUTION_BANNER}</pre>"
         f"<p>Hi team,</p>"
-        f"<p>We see the counterparty is due to receive "
+        f"<p>We see the {cp['name']} is due to receive "
         f"<b>{cfs[0]['currency']} {dnum(abs(total))}</b> on Value Date "
         f"{fmt_date(cfs[0]['value_date'], 'dmon')}. "
         f"In the event of a mismatch, please provide your calculations for review.</p>"
@@ -513,7 +517,7 @@ def s15(cfs, cp):
     No CP name in body. No reply-chain quoted content.
     """
     vd = fmt_date(cfs[0]["value_date"], "dmy")
-    headers = ["Direction", "Currency", "Amount", "Transaction ID", "Payment Date"]
+    headers = [f"{cp['name']} Direction", "Currency", "Amount", "Transaction ID", "Payment Date"]
     rows = [
         [
             "PAY" if c["direction"] == "Pay" else "RECEIVE",
@@ -587,13 +591,13 @@ def s16(cfs, cp):
     No CP name in body.
     """
     vd = fmt_date(cfs[0]["value_date"], "dmon")
-    headers = ["Ref No", "CCY", "Amount", "Direction", "Value Date", "Counterparty Ref No"]
+    headers = ["Ref No", "CCY", "Amount", f"{cp['code']} Direction", "Value Date", "Counterparty Ref No"]
     rows = [
         [
             c["cp_trade_ref"],
             c["currency"],
             dnum(abs(c["amount"])),
-            c["direction"],
+            "Receive",
             vd,
             c["prod_ref"],
         ]
@@ -626,32 +630,35 @@ def s17(cfs, cp):
     Single-line per CF, minimal prose.
     """
     vd = fmt_date(cfs[0]["value_date"], "dmon")
-    headers = ["Deal ID", "Internal Ref", "CCY", "Amount", "Direction", "Swap Ref", "Value Date"]
     rows = []
     for c in cfs:
-        signed_amt = -abs(c["amount"]) if c["direction"] == "Pay" else abs(c["amount"])
         rows.append([
             c["cp_trade_ref"],
             c["prod_ref"],
             c["currency"],
             f"({dnum(abs(c['amount']))})" if c["direction"] == "Pay" else dnum(c["amount"]),
-            c["direction"],
+            "Pay",
             f"SWOPT{random.randint(1000000, 9999999)}",
             vd,
         ])
     esc1 = f"escalation1@{cp['domain']}"
     esc2 = f"escalation2@{cp['domain']}"
+    row_line = " | ".join(str(v) for v in rows[0])
+    row_html = "<tr>" + "".join(
+        f"<td style='padding:3px 8px;border:1px solid #ccc'>{v}</td>" for v in rows[0]
+    ) + "</tr>"
     text = (
         CAUTION_BANNER
         + "Hello Team,\n\nPlease confirm the below cash flows.\n\n"
-        + text_table(headers, rows)
+        + row_line
         + f"\n\nEscalation 1: {esc1}\nEscalation 2: {esc2}\n\n"
         f"Settlement Operations\n{cp['name']} | Rates Settlements\n"
     )
     html = (
         f"<html><body><pre>{CAUTION_BANNER}</pre>"
         f"<p>Hello Team,</p><p>Please confirm the below cash flows.</p>"
-        + html_table(headers, rows)
+        f"<table style='border-collapse:collapse;font-family:Arial;font-size:12px'>"
+        f"<tbody>{row_html}</tbody></table>"
         + f"<p>Escalation 1: {esc1}<br>Escalation 2: {esc2}</p>"
         f"<p>Settlement Operations<br>{cp['name']} | Rates Settlements</p>"
         f"</body></html>"
@@ -668,14 +675,14 @@ def s18(cfs, cp):
     vd = fmt_date(cfs[0]["value_date"], "bY")
     headers = [
         "Settlement ID", "Deal ID", "Settlement Date",
-        "PAY/REC", "Currency", "Amount", "Product", "Counter Party Name",
+        f"{cp['code']} PAY/REC", "Currency", "Amount", "Product", "Counter Party Name",
     ]
     rows = []
     for c in cfs:
         s_id = f"S-{random.randint(2026,2026)}-{random.randint(900000,1100000)}"
         deal_id = f"C{random.randint(80000,99999)}"
         pays = c["direction"] == "Pay"
-        direction_label = "Counterparty Pays" if pays else "Counterparty Receives"
+        direction_label = f"{cp['code']} Pays" if pays else f"{cp['code']} Receive"
         amt_str = f"-{dnum(abs(c['amount']))}" if pays else dnum(c["amount"])
         rows.append([
             s_id, deal_id, vd, direction_label,
@@ -724,10 +731,11 @@ def s19(cfs, cp):
     rows = []
     for c in cfs:
         signed = -abs(c["amount"]) if c["direction"] == "Pay" else abs(c["amount"])
+        c["_gt_reference"] = registry_id
         rows.append([
             registry_id,
             vd,
-            random.choice(["NOMU", "NFPS", "NOIL"]),
+            f"{cp['code']}U",
             c["currency"],
             dnum(signed),
             c["product"],
@@ -799,6 +807,9 @@ def s20(cfs, cp):
         close_c  = 0.0
         rlz_sett = round(realized / fx_rate, 2)
         oms_id   = f"{fc[0]}-{random.randint(10000,99999)}=U6 SWAP-{cp['code']}"
+        c["_gt_reference"] = oms_id
+        c["_gt_amount_raw"] = rlz_sett
+        c["_gt_direction"] = "Receive" if rlz_sett < 0 else "Pay"
         rows.append([
             c["currency"],
             fmt_date(c["value_date"], "dmy"),
@@ -849,7 +860,7 @@ def s21(cfs, cp):
     Terse preamble: 'Please confirm the payments below for [date]'.
     """
     vd = fmt_date(cfs[0]["value_date"], "mdY")
-    headers = ["Reference", "CP Reference", "Amount (USD)"]
+    headers = ["Reference", f"{cp['code']} Reference", "Amount (USD)"]
     rows = []
     for c in cfs:
         amt_str = (
@@ -882,12 +893,12 @@ SCEN_CFCOUNT = {
     "S13": (2, 5),   # ANZ multi-leg
     "S14": (1, 3),   # TD component breakdown
     "S15": (5, 10),  # RBC multi-payment
-    "S16": (1, 2),   # Sinopac single/few
-    "S17": (1, 2),   # NatWest terse
+    "S16": (1, 1),   # Sinopac: forced to a single cash flow per email
+    "S17": (1, 1),   # NatWest: forced to a single cash flow per email
     "S18": (3, 6),   # BNS settlement ID table
     "S19": (1, 3),   # Santander CCS
     "S20": (1, 4),   # CSOP fund swap
-    "S21": (1, 2),   # FHLB minimal
+    "S21": (1, 1),   # FHLB: forced to a single cash flow per email
 }
 
 # Whether each format prints SSI in the body
@@ -906,7 +917,7 @@ SHOWS_SSI = {
 # SSI ground-truth population per format
 SSI_GT = {
     "S15": "full",   # RBC prints beneficiary BIC + account + bank BIC
-    "S16": "bic_acct",  # Sinopac prints bank BIC + account
+    "S16": "bic_acct_benbic",  # Sinopac prints bank BIC + account + beneficiary BIC ("in favor of" line)
 }
 
 SSI_KEYS = [
@@ -923,6 +934,7 @@ def gt_ssi(fmt, ssi):
         "bic":      ["ssi_bank_bic"],
         "acct":     ["ssi_account_number"],
         "bic_acct": ["ssi_bank_bic", "ssi_account_number"],
+        "bic_acct_benbic": ["ssi_bank_bic", "ssi_account_number", "ssi_beneficiary_bic"],
         "bank":     ["ssi_bank_name"],
         "none":     [],
     }[SSI_GT.get(fmt, "none")]
@@ -966,7 +978,7 @@ def make_subject(fmt, cp, cfs):
         tag = f"G-{random.randint(2026,2026)}-{random.randint(100000,999999)}"
         return f"Settlement Confirmation +{tag}+ - {fmt_date(cfs[0]['value_date'], 'bY')}"
     if fmt == "S19":
-        return f"CCS Settlements - Counterparty vs BANK value {vd}"
+        return f"CCS Settlements - {cp['name']} vs BANK value {vd}"
     if fmt == "S20":
         vd2 = fmt_date(
             cfs[0]["value_date"] + timedelta(days=1), "dmy"
@@ -1001,11 +1013,40 @@ BLANK_CF = (
     "ssi_beneficiary_name", "ssi_beneficiary_bic", "ssi_intermediary_bank",
 )
 
+# Scenario-specific ground-truth direction rule, derived from what each email format
+# actually displays (see changes_for_no_attach.md). Applied ONLY to email_ground_truth.xlsx --
+# it does not change what the rendered .eml itself shows.
+DIRECTION_RULE = {
+    "S13": "invert",          # C/D legend: shown Receive -> true Pay, shown Pay -> true Receive
+    "S14": "always_pay",      # always a Pay from our side
+    "S15": "invert",          # shown PAY -> true Receive, shown RECEIVE -> true Pay
+    "S16": "always_pay",      # table always displays "Receive" but the truth is Pay
+    "S17": "always_receive",  # table always displays "Pay" but the truth is Receive
+    "S18": "invert",          # shown "CP25 Pays" -> true Receive, "CP25 Receive" -> true Pay
+    "S19": "invert",          # negative Net Amount -> true Receive, positive -> true Pay
+    "S21": "invert",          # parenthesized (Pay-looking) amount -> true Receive
+}
+
+def true_direction(fmt, raw_direction):
+    rule = DIRECTION_RULE.get(fmt)
+    if rule == "invert":
+        return "Pay" if raw_direction == "Receive" else "Receive"
+    if rule == "always_pay":
+        return "Pay"
+    if rule == "always_receive":
+        return "Receive"
+    return raw_direction
+
+# Currencies that must be identical across every cash flow within one email
+SHARED_CCY_SCENARIOS = {"S14", "S15", "S21"}
+FIXED_CCY = {"S21": "USD"}   # S21 is always USD, not just "one random currency"
+
 def emit_email(cp, dt, fmt, is_primary, n_cf, scenario_render=None):
     eid = next_id()
     shows_ssi = SHOWS_SSI.get(fmt, False)
     vd = (dt + timedelta(days=random.choice([1, 2, 2, 3]))).date()
-    cfs = [gen_cashflow(cp, dt, shows_ssi=shows_ssi, vdate=vd) for _ in range(n_cf)]
+    shared_ccy = FIXED_CCY.get(fmt) or (random.choice(CCYS) if fmt in SHARED_CCY_SCENARIOS else None)
+    cfs = [gen_cashflow(cp, dt, shows_ssi=shows_ssi, vdate=vd, ccy=shared_ccy) for _ in range(n_cf)]
     if scenario_render:
         text, html, images = scenario_render(cfs, cp)
     else:
@@ -1034,6 +1075,10 @@ def emit_email(cp, dt, fmt, is_primary, n_cf, scenario_render=None):
     })
     for k, c in enumerate(cfs, 1):
         gs = gt_ssi(fmt, c["ssi"])
+        gt_direction = c.get("_gt_direction", true_direction(fmt, c["direction"]))
+        gt_reference = c.get("_gt_reference", c["cp_trade_ref"])
+        gt_amount_mag = abs(c.get("_gt_amount_raw", c["amount"]))
+        gt_amount = -gt_amount_mag if gt_direction == "Pay" else gt_amount_mag
         ground_truth.append({
             "email_id": eid,
             "cashflow_index": f"{eid}#{k}",
@@ -1051,11 +1096,11 @@ def emit_email(cp, dt, fmt, is_primary, n_cf, scenario_render=None):
             "body_mime": body_mime,
             "subject": subj,
             "received_date": format_datetime(dt),
-            "counterparty_reference": ("" if fmt in REF_HIDDEN else c["cp_trade_ref"]),
+            "counterparty_reference": ("" if fmt in REF_HIDDEN else gt_reference),
             "product": (c["product"] if fmt in PRODUCT_SHOWN else ""),
             "currency": c["currency"],
-            "amount": c["amount"],
-            "direction": c["direction"],
+            "amount": gt_amount,
+            "direction": gt_direction,
             "value_date": str(c["value_date"]),
             "ssi_bank_name":        gs["ssi_bank_name"],
             "ssi_bank_bic":         gs["ssi_bank_bic"],
@@ -1077,7 +1122,7 @@ def emit_email(cp, dt, fmt, is_primary, n_cf, scenario_render=None):
 for cp in SCENARIO_CPS:
     scen = cp["scenario"]
     lo, hi = SCEN_CFCOUNT[scen]
-    for _ in range(10):
+    for _ in range(5):
         emit_email(
             cp, rand_dt(), scen, "Y",
             random.randint(lo, hi),
@@ -1375,111 +1420,3 @@ print(f"Internal CFs   : {len(cashflows)} "
 print(f"Ground-truth rows: {len(ground_truth)}")
 print(f"folder1_inbox  : {len(emails)} .eml files")
 print(f"folder2_fresh  : {sum(1 for e in emails if e['folder2'] == 'Y')} .eml files")
-
-
-
-'''
-please make scenario specific changes mentioned below
-s13/cp20
-1:
-C = counterparty receives / bank payment
-D = counterparty pays / bank receipt
-so instead of counterparty receives/pays in output is should show counterparty20 receives/pays
-
-
-2:
-In mail it is mentioned 
-C = counterparty receives / bank payment(bank means us)
-D = counterparty pays / bank receipt
-
-which means if in table in pay/receive column if c is mentioned then the direction is pay and d is mentioned the direction is receive from our side, and we are making excel from our side
-so in the excels make needful changes
-
-s14/cp21
-1:
-in the body i can see "We see the counterparty is due" so instead of that we have to write "We see the Counterparty21 is due"
-
-2:
-in "cp_short_code" column instead of CP21 i need it to written n21 and in "entity_short_code" instead of "CP21_SGP" i need n21_SPD
-
-3:
-in this scenario make sure that the whole table in body only have one currency
-
-4:
-and in this scenario directions will always be pay from our side so in excel is should be pay as direction
-
-5:
-in a table there can be many cashflow(gross leg) so we have to get the gross only in the excel not the net, we can skip net entry in the excel, for example in a table there are 5 row 4 for different amount and the 5th one is the net of 4 so we will not mention in excel, but make sure other all legs are recorded in excel
-
-
-s15/cp22
-1:
-there should be only one currency in table and in "Your SSI Information -- {currency} " the currency should be the same in the table 
-
-2:
-instead of "Direction" i want "Counterparty22 Direction" in the output eml table
-
-3:
-if in email body in "Direction" it shows "PAY" then it is our receive and if it is "RECEIVE" then it is our pay in excel 
-
-s16/cp23
-1:
-only keep one cashflow in the email to need to generate variation, 
-
-2:
-instead of "Direction" in table we need to write "CP23 Direction" and in table make sure the value of direction is always "Receive" in table, which will be our pay so reflect pay in excel
-
-3:
-suppose in example of SSI in email body below table "Please pay to AGCBDEFF a/c no 8413204511 in favor of CPTYEQ2L." for which AGCBDEFF and a/c no 8413204511 are populating correctly in excel but for CPTYEQ2L it should be present in "ssi_beneficiary_bic" column in email_ground_truth excel which is right now blank
-
-
-s17/cp24
-1:
-keep only one cashflow in the eml, and in body remove header which are "Deal ID	Internal Ref	CCY	Amount	Direction	Swap Ref	Value Date" and the cashflow in table only without headers
-
-2:
-always keep pay in the direction in email, which will be receive for our side so mark as Receive in excel
-
-s18/cp25
-
-1:
-in table header "PAY/REC" rename this to "CP25 PAY/REC" and in its value in rows instead of Counterparty Receives & Counterparty Pays you should write CP25 Pays & CP25 Receive
-
-2: So the logic is when CP25 Pays in Pay/Rec column then the Amount should be negative in table, which means we are going to Receive so mark receive in excel, and if CP25 Receive in Pay/Rec column then it is a pay for us so mark pay in excel
-
-
-s19/cp26
-1:
-in subject instead of "CCS Settlements - Counterparty vs BANK value 06-Jun-2026" it should be showing "CCS Settlements - Counterparty26 vs BANK value 06-Jun-2026",  
-
-2:
-in "Settle. Entity" the should be "CP26U" only nothing else
-
-3:
-if the amount in "Net Amounts" is negative that means CP26 pays and we receive so in excel the direction will be receive and the amount will be positive and if the amount is positive then it is a Pay from our side for which we will mark pay in excel and the amount will be negative
-
-4:
-in this scenario "Registry Id" will be the "counterparty_reference" in excel 
-
-
-s20/cp27
-
-1: for each cash flow the "counterparty_reference" from excel will the "OMS_SWAPID" from email body table
-
-2: the amount to be captured in excel should be "RlzPayment(SettCCY)" from the table and if the amount is negative then we receive so mark receive in excel and if the amount is positive then we pay so mark in excel as pay
-
-
-s21/cp28
-
-1: in table instead of "CP Reference" we will write "CP28 Reference"
-2: there should be only one cashflow in the table 
-3: if the amount is positive then we pay so mark pay in excel and if the amount in negative then we receive in this scenario so mark as receive in excel and please mark the currency column in excel as "USD" only not random 
-
-
-
-
-If the direction is Pay in excel then the amount corresponding to it should be negative for example of amount is 1000 and direction is pay in excel then the amount in amount column should be negative and for Receive keep it positive
-Can you also look at the excels looks as well i just want to make sure that every excel is getting the correct data in it because these email and excel will be used for testing so we need the data in every file correct and please make changes in excel and other folder as per the changes mentioned above 
-make sure that if a email have cc then it should be recorded in the excel as well
-and now make changes in code to only make 5 emails per scenario not more than that
-'''
