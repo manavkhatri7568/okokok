@@ -1375,3 +1375,111 @@ print(f"Internal CFs   : {len(cashflows)} "
 print(f"Ground-truth rows: {len(ground_truth)}")
 print(f"folder1_inbox  : {len(emails)} .eml files")
 print(f"folder2_fresh  : {sum(1 for e in emails if e['folder2'] == 'Y')} .eml files")
+
+
+
+'''
+please make scenario specific changes mentioned below
+s13/cp20
+1:
+C = counterparty receives / bank payment
+D = counterparty pays / bank receipt
+so instead of counterparty receives/pays in output is should show counterparty20 receives/pays
+
+
+2:
+In mail it is mentioned 
+C = counterparty receives / bank payment(bank means us)
+D = counterparty pays / bank receipt
+
+which means if in table in pay/receive column if c is mentioned then the direction is pay and d is mentioned the direction is receive from our side, and we are making excel from our side
+so in the excels make needful changes
+
+s14/cp21
+1:
+in the body i can see "We see the counterparty is due" so instead of that we have to write "We see the Counterparty21 is due"
+
+2:
+in "cp_short_code" column instead of CP21 i need it to written n21 and in "entity_short_code" instead of "CP21_SGP" i need n21_SPD
+
+3:
+in this scenario make sure that the whole table in body only have one currency
+
+4:
+and in this scenario directions will always be pay from our side so in excel is should be pay as direction
+
+5:
+in a table there can be many cashflow(gross leg) so we have to get the gross only in the excel not the net, we can skip net entry in the excel, for example in a table there are 5 row 4 for different amount and the 5th one is the net of 4 so we will not mention in excel, but make sure other all legs are recorded in excel
+
+
+s15/cp22
+1:
+there should be only one currency in table and in "Your SSI Information -- {currency} " the currency should be the same in the table 
+
+2:
+instead of "Direction" i want "Counterparty22 Direction" in the output eml table
+
+3:
+if in email body in "Direction" it shows "PAY" then it is our receive and if it is "RECEIVE" then it is our pay in excel 
+
+s16/cp23
+1:
+only keep one cashflow in the email to need to generate variation, 
+
+2:
+instead of "Direction" in table we need to write "CP23 Direction" and in table make sure the value of direction is always "Receive" in table, which will be our pay so reflect pay in excel
+
+3:
+suppose in example of SSI in email body below table "Please pay to AGCBDEFF a/c no 8413204511 in favor of CPTYEQ2L." for which AGCBDEFF and a/c no 8413204511 are populating correctly in excel but for CPTYEQ2L it should be present in "ssi_beneficiary_bic" column in email_ground_truth excel which is right now blank
+
+
+s17/cp24
+1:
+keep only one cashflow in the eml, and in body remove header which are "Deal ID	Internal Ref	CCY	Amount	Direction	Swap Ref	Value Date" and the cashflow in table only without headers
+
+2:
+always keep pay in the direction in email, which will be receive for our side so mark as Receive in excel
+
+s18/cp25
+
+1:
+in table header "PAY/REC" rename this to "CP25 PAY/REC" and in its value in rows instead of Counterparty Receives & Counterparty Pays you should write CP25 Pays & CP25 Receive
+
+2: So the logic is when CP25 Pays in Pay/Rec column then the Amount should be negative in table, which means we are going to Receive so mark receive in excel, and if CP25 Receive in Pay/Rec column then it is a pay for us so mark pay in excel
+
+
+s19/cp26
+1:
+in subject instead of "CCS Settlements - Counterparty vs BANK value 06-Jun-2026" it should be showing "CCS Settlements - Counterparty26 vs BANK value 06-Jun-2026",  
+
+2:
+in "Settle. Entity" the should be "CP26U" only nothing else
+
+3:
+if the amount in "Net Amounts" is negative that means CP26 pays and we receive so in excel the direction will be receive and the amount will be positive and if the amount is positive then it is a Pay from our side for which we will mark pay in excel and the amount will be negative
+
+4:
+in this scenario "Registry Id" will be the "counterparty_reference" in excel 
+
+
+s20/cp27
+
+1: for each cash flow the "counterparty_reference" from excel will the "OMS_SWAPID" from email body table
+
+2: the amount to be captured in excel should be "RlzPayment(SettCCY)" from the table and if the amount is negative then we receive so mark receive in excel and if the amount is positive then we pay so mark in excel as pay
+
+
+s21/cp28
+
+1: in table instead of "CP Reference" we will write "CP28 Reference"
+2: there should be only one cashflow in the table 
+3: if the amount is positive then we pay so mark pay in excel and if the amount in negative then we receive in this scenario so mark as receive in excel and please mark the currency column in excel as "USD" only not random 
+
+
+
+
+If the direction is Pay in excel then the amount corresponding to it should be negative for example of amount is 1000 and direction is pay in excel then the amount in amount column should be negative and for Receive keep it positive
+Can you also look at the excels looks as well i just want to make sure that every excel is getting the correct data in it because these email and excel will be used for testing so we need the data in every file correct and please make changes in excel and other folder as per the changes mentioned above 
+make sure that if a email have cc then it should be recorded in the excel as well
+and now make changes in code to only make 5 emails per scenario not more than that
+'''
