@@ -23,6 +23,19 @@ from PIL import Image, ImageDraw, ImageFont
 
 random.seed(20260711)
 
+# ------------------------------------------------------------------ scenario mock config
+# Leave as None to generate the FULL dataset: every scenario (S13-S27), 5 emails each,
+# plus 20 orphan internal records.
+#
+# Set to a dict of {scenario_code: how_many_emails_to_generate} to mock ONLY those
+# scenarios, each exactly that many times - everything else is skipped, including the
+# 20 orphan internal records. Unknown/non-existent scenario codes are simply skipped
+# with a warning printed at the end, rather than crashing.
+#
+#   SCENARIO_MOCK = {"S21": 2, "S19": 2, "S45": 2}
+#   -> generates 2 emails of S21 and 2 of S19; "S45" doesn't exist so it's skipped + warned
+SCENARIO_MOCK = None
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 F1 = os.path.join(ROOT, "folder1_inbox")
 F2 = os.path.join(ROOT, "folder2_fresh")
@@ -1759,14 +1772,30 @@ def emit_email_attach(cp, dt, fmt, n_cf, renderer):
 
 
 # ================================================================== GENERATION LOOP
-# 10 emails per scenario (S13-S21), no noise, no SSI-only emails
+# Full dataset: 5 emails per scenario (S13-S27). Set SCENARIO_MOCK near the top of the
+# file to mock a specific subset instead, with your own email count per scenario.
+
+ALL_SCENARIO_FMTS = set(SCEN_CFCOUNT) | set(ATTACH_CFCOUNT)
+
+def _mock_count(scen):
+    if SCENARIO_MOCK is None:
+        return 5
+    return SCENARIO_MOCK.get(scen, 0)
+
+if SCENARIO_MOCK is not None:
+    _unknown = sorted(set(SCENARIO_MOCK) - ALL_SCENARIO_FMTS)
+    if _unknown:
+        print(f"WARNING: SCENARIO_MOCK has unknown scenario code(s), skipped: {_unknown}")
 
 for cp in SCENARIO_CPS:
     scen = cp["scenario"]
     if scen not in SCENARIO:
         continue
+    n_emails = _mock_count(scen)
+    if n_emails <= 0:
+        continue
     lo, hi = SCEN_CFCOUNT[scen]
-    for _ in range(5):
+    for _ in range(n_emails):
         emit_email(
             cp, rand_dt(), scen, "Y",
             random.randint(lo, hi),
@@ -1775,11 +1804,15 @@ for cp in SCENARIO_CPS:
 
 for cp in NEW_CPS:
     scen = cp["scenario"]
+    n_emails = _mock_count(scen)
+    if n_emails <= 0:
+        continue
     lo, hi = ATTACH_CFCOUNT[scen]
-    for _ in range(5):
+    for _ in range(n_emails):
         emit_email_attach(cp, rand_dt(), scen, random.randint(lo, hi), ATTACH_SCENARIO[scen])
 
-add_orphan_cashflows(20)
+if SCENARIO_MOCK is None:
+    add_orphan_cashflows(20)
 
 # folder2: freshest 40 affirmations
 aff  = [e for e in emails if e["email_type"] == "SettlementAffirmation"]
