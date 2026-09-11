@@ -489,6 +489,11 @@ def s13(cfs, cp):
         f"instructions to process.\n\n"
         + legend + "\n"
         + text_table(headers, rows)
+        + "\n\nWe would like to inform you that with effect from 07/07/2025, our email address will be "
+        "changed to Markets Rates Commodity Settlements@cp20.com for all settlement matters relating to "
+        "Rates and Commodity products. Please update your contacts database and address your query to "
+        "this new email address going forward. In the meantime, please allow us time to review your "
+        "query and do not attend all transactions will be sent out from Markets Rates Commodity Setts.\n"
         + f"\n\nEscalations:\n"
         f"Level 1: {esc1}\nLevel 2: {esc2}\nLevel 3: {esc3}\n\n"
         f"Thanks and Regards,\n{cp['name']} Settlement Operations\n"
@@ -767,6 +772,8 @@ def s18(cfs, cp):
         "Summary of Settlements by Deal:\n\n"
         + text_table(headers, rows)
         + f"\n\nRegards,\nDerivative Products Settlements\n"
+        f"The {cp['code']} changes its Derivative banking instructions for USD. "
+        f"A copy of the updated SSI will be provided on request\n"
         f"*** Settlement banking instructions for USD may be subject to change. "
         f"A copy of the updated SSI will be provided on request ***\n"
     )
@@ -821,7 +828,19 @@ def s19(cfs, cp):
         + f"\n{sign_note}\n\n"
         f"Important note: Please ensure SSI details are up to date. "
         f"New correspondent BIC: {new_ssi_bic}\n\n"
-        f"Thank you.\n\nRegards,\nGlobal Markets Operations\n{cp['name']}\n"
+        f"Thank you.\n\nRegards,\n\n"
+        f"Important note:\n"
+        f"Effective 11th May 2026, due to the change in CAD SSI of our CAD correspondent bank "
+        f"{cp['code']} (BIC: ABCDEF) from RCBCSKMI to Dominic, all CAD call settlements from "
+        f"11th May 2026 onwards will be on this NEW correspondent 1T DOMINIC.\n\n"
+        f"Our new CAD SSIs will be as below:\n"
+        f":56A: TDOMCATTOR\n"
+        f":57A:BSCHESMMXXX\n"
+        f":58A:ES5600495494872710451561\n"
+        f"BSCHKHHXXX\n\n"
+        f"Please contact us immediately in case of any queries. If you need updated SSI, please let "
+        f"us know ASAP\n\n"
+        f"Global Markets Operations\n{cp['name']}\n"
     )
     html = (
         f"<html><body>"
