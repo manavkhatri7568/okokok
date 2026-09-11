@@ -34,7 +34,7 @@ random.seed(20260711)
 #
 #   SCENARIO_MOCK = {"S21": 2, "S19": 2, "S45": 2}
 #   -> generates 2 emails of S21 and 2 of S19; "S45" doesn't exist so it's skipped + warned
-SCENARIO_MOCK = None
+SCENARIO_MOCK = {"S13":1, "S18":1, "S19":1}
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 F1 = os.path.join(ROOT, "folder1_inbox")
@@ -519,6 +519,11 @@ def s13(cfs, cp):
         f"<p><b>C = {cp['name']} receives / bank payment</b><br>"
         f"<b>D = {cp['name']} pays / bank receipt</b></p>"
         + html_table(headers, rows)
+        + "<p>We would like to inform you that with effect from 07/07/2025, our email address will be "
+        "changed to Markets Rates Commodity Settlements@cp20.com for all settlement matters relating to "
+        "Rates and Commodity products. Please update your contacts database and address your query to "
+        "this new email address going forward. In the meantime, please allow us time to review your "
+        "query and do not attend all transactions will be sent out from Markets Rates Commodity Setts.</p>"
         + f"<p>Escalations:<br>Level 1: {esc1}<br>Level 2: {esc2}<br>Level 3: {esc3}</p>"
         f"<p>Thanks and Regards,<br>{cp['name']} Settlement Operations</p>"
         f"</body></html>"
@@ -787,6 +792,8 @@ def s18(cfs, cp):
         f"<li>Please provide your agreement by responding to this email.</li></ul>"
         + html_table(headers, rows, title="Summary of Settlements by Deal")
         + f"<p>Regards,<br>Derivative Products Settlements</p>"
+        f"<p>The {cp['code']} changes its Derivative banking instructions for USD. "
+        f"A copy of the updated SSI will be provided on request</p>"
         f"<p><b>*** Settlement banking instructions for USD may be subject to change. "
         f"A copy of the updated SSI will be provided on request ***</b></p>"
         f"</body></html>"
@@ -855,7 +862,19 @@ def s19(cfs, cp):
         + f"<p><i>{sign_note}</i></p>"
         f"<p>Important note: Please ensure SSI details are up to date. "
         f"New correspondent BIC: <b>{new_ssi_bic}</b></p>"
-        f"<p>Thank you.</p><p>Regards,<br>Global Markets Operations<br>{cp['name']}</p>"
+        f"<p>Thank you.</p><p>Regards,</p>"
+        f"<p><b>Important note:</b><br>"
+        f"Effective 11th May 2026, due to the change in CAD SSI of our CAD correspondent bank "
+        f"{cp['code']} (BIC: ABCDEF) from RCBCSKMI to Dominic, all CAD call settlements from "
+        f"11th May 2026 onwards will be on this NEW correspondent 1T DOMINIC.</p>"
+        f"<p>Our new CAD SSIs will be as below:<br>"
+        f":56A: TDOMCATTOR<br>"
+        f":57A:BSCHESMMXXX<br>"
+        f":58A:ES5600495494872710451561<br>"
+        f"BSCHKHHXXX</p>"
+        f"<p>Please contact us immediately in case of any queries. If you need updated SSI, please let "
+        f"us know ASAP</p>"
+        f"<p>Global Markets Operations<br>{cp['name']}</p>"
         f"</body></html>"
     )
     return text, html, []
